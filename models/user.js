@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import { Schema } from "mongoose";
 import jwt from "jsonwebtoken";
+import bcrypt from "bcrypt";
 
 const UserSchema = mongoose.Schema({
   full_name: {
@@ -19,6 +20,7 @@ const UserSchema = mongoose.Schema({
       message: (prop) => `${prop.value} is not a valid email`,
     },
     required: [true, "Email is required"],
+    unique: true,
   },
   password: {
     type: String,
@@ -27,10 +29,17 @@ const UserSchema = mongoose.Schema({
 });
 
 UserSchema.methods.getJWT = async function () {
-  const user = this;
-  const token = await jwt.sign({ _id: user._id }, process.env.JWT_SECRATE, {
-    expiresIn: "2d",
-  });
+  return await jwt.sign(
+    { _id: this._id, email: this.email },
+    process.env.JWT_SECRATE,
+    {
+      expiresIn: "2d",
+    },
+  );
+};
+
+UserSchema.methods.verifyPassword = async function (inputPassword) {
+  return await bcrypt.compare(inputPassword, this.password);
 };
 
 const User = mongoose.model("User", UserSchema);
