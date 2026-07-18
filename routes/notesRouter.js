@@ -3,12 +3,14 @@ import {
   createNotes,
   updateNotes,
   deleteNotes,
+  getNotesById,
 } from "../controllers/notesController.js";
 import { userAuth } from "../middelware/authMiddelware.js";
 
 const notesRouter = express.Router();
 
 notesRouter.post("/create", userAuth, createNotes);
+notesRouter.get("/get/:notesId", userAuth, getNotesById);
 notesRouter.patch("/update", userAuth, updateNotes);
 notesRouter.delete("/delete/:notesId", userAuth, deleteNotes);
 

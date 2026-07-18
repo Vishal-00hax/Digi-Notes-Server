@@ -3,30 +3,33 @@ import { Schema } from "mongoose";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 
-const UserSchema = mongoose.Schema({
-  full_name: {
-    type: String,
-    default: "",
-    required: true,
-  },
-  email: {
-    type: String,
-    default: "",
-    required: true,
-    vaildate: {
-      vaildator: function (v) {
-        return /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(v);
-      },
-      message: (prop) => `${prop.value} is not a valid email`,
+const UserSchema = mongoose.Schema(
+  {
+    full_name: {
+      type: String,
+      default: "",
+      required: true,
     },
-    required: [true, "Email is required"],
-    unique: true,
+    email: {
+      type: String,
+      default: "",
+      required: true,
+      vaildate: {
+        vaildator: function (v) {
+          return /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(v);
+        },
+        message: (prop) => `${prop.value} is not a valid email`,
+      },
+      required: [true, "Email is required"],
+      unique: true,
+    },
+    password: {
+      type: String,
+      required: true,
+    },
   },
-  password: {
-    type: String,
-    required: true,
-  },
-});
+  { timestamps: true },
+);
 
 UserSchema.methods.getJWT = async function () {
   return await jwt.sign(
