@@ -35,7 +35,7 @@ export const askNotes = async (req, res) => {
       }, // Select specific keys from schema
       {
         $match: {
-          score: { $gte: 0.75 }, // ✅ sirf genuinely relevant notes rakho
+          score: { $gte: 0.76 }, // sirf genuinely relevant notes rakho
         },
       },
     ]);
@@ -56,7 +56,7 @@ export const askNotes = async (req, res) => {
         {
           role: "system",
           content:
-            "You are a strict data retrieval assistant. Rely exclusively on the facts explicitly mentioned in the provided notes. Do not use your background knowledge, make assumptions, or draw logical conclusions. If the answer is not present in the notes, reply by saying the information is not found in the provided context. Output your final response in clean plain text without any formatting symbols.",
+            "You are a helpful assistant answering questions based on the provided notes. Rely primarily on the facts in the notes. If the user asks for a definition of a general concept or tool (like MongoDB or Node.js) that is mentioned in the notes but not formally defined, you may provide a brief 1-sentence general definition, but must tie the rest of your answer strictly to how it is used in the user's notes. Write in clean plain text.",
         },
         {
           role: "user",
@@ -66,7 +66,9 @@ export const askNotes = async (req, res) => {
     });
 
     const answerText = response.choices[0].message.content;
-    res.status(200).json({ answer: answerText, source: relatedNotes });
+    res
+      .status(200)
+      .json({ question: question, answer: answerText, source: relatedNotes });
   } catch (err) {
     console.error("askNotes Error:", err);
     return res.status(500).json({

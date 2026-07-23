@@ -25,12 +25,12 @@ export const userSignUp = async (req, res) => {
     const newUser = await user.save();
     const token = await user.getJWT();
     res.cookie("token", token, {
-      expires: new Date(Date.now() + 48 * 3600000),
       httpOnly: true,
-      secure: true,
-      sameSite: "none",
+      secure: false,
+      sameSite: "lax",
+      maxAge: 48 * 60 * 60 * 1000,
     });
-    res.status(201).json(newUser);
+    res.status(201).json({ user: newUser });
   } catch (err) {
     res.status(400).json({ message: "User Creating failed " + err.message });
   }
@@ -49,11 +49,27 @@ export const userLogIn = async (req, res) => {
     }
     const token = await user.getJWT();
     res.cookie("token", token, {
-      expires: new Date(Date.now() + 48 * 3600000),
       httpOnly: true,
+      secure: false,
+      sameSite: "lax",
+      maxAge: 48 * 60 * 60 * 1000,
     });
     user.password = undefined;
-    res.status(200).json({ data: user });
+    res.status(200).json({ user: user });
+  } catch (err) {
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const userLogout = async (req, res) => {
+  try {
+    res.cookie("token", null, {
+      expires: new Date(Date.now()),
+      httpOnly: true,
+      secure: false,
+      sameSite: "lax",
+    });
+    res.json({ message: "Logout Successfull" });
   } catch (err) {
     res.status(500).json({ message: "Internal server error" });
   }
@@ -67,7 +83,7 @@ export const userProfile = async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: "User not found." });
     }
-    res.status(200).json({ data: user });
+    res.status(200).json({ user: user });
   } catch (err) {
     res.status(500).json({ message: "Internal server error" });
   }
