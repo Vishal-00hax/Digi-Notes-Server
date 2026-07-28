@@ -1,6 +1,7 @@
 import ai from "../config/open-ai.js";
 import { createEmbedding } from "../utils/genrateEmbedding.js";
 import Notes from "../models/notes.js";
+import removeMd from "remove-markdown";
 
 export const askNotes = async (req, res) => {
   try {
@@ -29,7 +30,7 @@ export const askNotes = async (req, res) => {
           title: 1,
           text: 1,
           updatedAt: 1,
-          _id: 0,
+          _id: 1,
           score: { $meta: "vectorSearchScore" },
         },
       }, // Select specific keys from schema
@@ -56,7 +57,7 @@ export const askNotes = async (req, res) => {
         {
           role: "system",
           content:
-            "You are a helpful assistant answering questions based on the provided notes. Rely primarily on the facts in the notes. If the user asks for a definition of a general concept or tool (like MongoDB or Node.js) that is mentioned in the notes but not formally defined, you may provide a brief 1-sentence general definition, but must tie the rest of your answer strictly to how it is used in the user's notes. Write in clean plain text.",
+            "Answer the question based strictly on the factual content provided in the user notes. Rely solely on the information contained within the notes and do not include any external knowledge or assumptions about the subject matter. However, always respond in the same language the user asks the question in, translating or explaining the note content in that language as needed — the notes being in a different language than the question is not a reason to say the information is unavailable. Respond in plain text only — do not use markdown formatting like asterisks, bold markers, or bullet symbols.",
         },
         {
           role: "user",
@@ -65,10 +66,14 @@ export const askNotes = async (req, res) => {
       ],
     });
 
-    const answerText = response.choices[0].message.content;
-    res
-      .status(200)
-      .json({ question: question, answer: answerText, source: relatedNotes });
+    const answerText = removeMd(response.choices[0].message.content)
+      .replace(/\n+/g, " ")
+      .trim();
+    res.status(200).json({
+      question: question,
+      answer: answerText,
+      source: relatedNotes,
+    });
   } catch (err) {
     console.error("askNotes Error:", err);
     return res.status(500).json({

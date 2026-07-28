@@ -87,7 +87,7 @@ export const getUserNotes = async (req, res) => {
   try {
     const userId = req.user._id;
     const notes = await Notes.find({ userId: userId }).select(
-      "-__v -embedding -text",
+      "-__v -embedding",
     );
     if (!notes) {
       return res.status(404).json({ message: "Notes not found." });

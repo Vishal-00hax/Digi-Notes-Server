@@ -32,22 +32,17 @@ const parseCookies = (rawCookie) => {
 const authSocket = (socket, next) => {
   try {
     const rawCookie = socket.handshake.headers.cookie;
-    if (!rawCookie) {
-      return next(new Error("Authentication required"));
-    }
+    if (!rawCookie) return next(new Error("Authentication required"));
 
     const parsedCookie = parseCookies(rawCookie);
-    const token = parsedCookie.token;
+    const token = parsedCookie.accessToken;
 
-    if (!token) {
-      return next(new Error("Authentication required"));
-    }
+    if (!token) return next(new Error("Authentication required"));
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRATE);
+    const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
     socket.userId = decoded._id;
     next();
   } catch (err) {
-    console.error("JWT verify failed:", err.message);
     next(new Error("Invalid or expired token"));
   }
 };
