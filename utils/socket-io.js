@@ -1,4 +1,3 @@
-// utils/socket-io.js
 import { Server } from "socket.io";
 import jwt from "jsonwebtoken";
 import { allowedOrigins } from "../app.js";
@@ -32,17 +31,22 @@ const parseCookies = (rawCookie) => {
 const authSocket = (socket, next) => {
   try {
     const rawCookie = socket.handshake.headers.cookie;
-    if (!rawCookie) return next(new Error("Authentication required"));
+    if (!rawCookie) {
+      return next(new Error("Authentication required"));
+    }
 
     const parsedCookie = parseCookies(rawCookie);
-    const token = parsedCookie.accessToken;
+    const token = parsedCookie.accessToken; // "token" → "accessToken"
 
-    if (!token) return next(new Error("Authentication required"));
+    if (!token) {
+      return next(new Error("Authentication required"));
+    }
 
-    const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
+    const decoded = jwt.verify(token, process.env.JWT_SECRATE);
     socket.userId = decoded._id;
     next();
   } catch (err) {
+    console.error("🔴 Socket JWT verify failed:", err.message);
     next(new Error("Invalid or expired token"));
   }
 };

@@ -48,7 +48,10 @@ export const askNotes = async (req, res) => {
     }
 
     const userContext = relatedNotes
-      .map((n, i) => `Notes: ${i + 1} - Date: ${n.updatedAt} - Text: ${n.text}`)
+      .map(
+        (n, i) =>
+          `Note ${i + 1} - Title: ${n.title || "Untitled"} - Date: ${n.updatedAt} - Content: ${n.text}`,
+      )
       .join("\n\n");
 
     const response = await ai.chat.completions.create({

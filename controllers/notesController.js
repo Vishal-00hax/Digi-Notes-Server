@@ -5,14 +5,28 @@ import { getIO } from "../utils/socket-io.js";
 export const createNotes = async (req, res) => {
   try {
     const userId = req.user._id;
+    const { title, text } = req.body;
+
+    const finalTitle = title !== undefined ? title : "New-Note";
+    const finalText = text !== undefined ? text : "Empty note";
+
+    const textToEmbed = `Title: ${finalTitle || "Untitled"}\nContent: ${finalText || "Empty note"}`;
+    const emembedding = await createEmbedding(textToEmbed);
+
     const note = new Notes({
       userId: userId,
+      title: finalTitle,
+      text: finalText,
+      embedding: emembedding,
     });
     const newNote = await note.save();
     getIO().to(userId.toString()).emit("note:created", newNote);
     res.status(201).json({ data: newNote._id });
   } catch (err) {
-    res.status(500).json({ message: "Internal server error ", err });
+    console.error("CRASH IN createNotes:", err);
+    res
+      .status(500)
+      .json({ message: "Internal server error", error: err.message });
   }
 };
 
@@ -28,7 +42,10 @@ export const updateNotes = async (req, res) => {
       return res.status(404).json({ message: "Note not found." });
     }
 
-    const textToEmbed = text || "Empty note";
+    const finalTitle = title !== undefined ? title : notes.title;
+    const finalText = text !== undefined ? text : notes.text;
+
+    const textToEmbed = `Title: ${finalTitle || "Untitled"}\nContent: ${finalText || "Empty note"}`;
     const emembedding = await createEmbedding(textToEmbed);
 
     if (title !== undefined) notes.title = title;
@@ -40,6 +57,7 @@ export const updateNotes = async (req, res) => {
       .status(200)
       .json({ message: "Notes updated successfull", data: updatedNote._id });
   } catch (err) {
+    console.error("CRASH IN updateNotes:", err);
     res
       .status(500)
       .json({ message: "Internal server error", error: err.message });
@@ -60,7 +78,10 @@ export const deleteNotes = async (req, res) => {
     getIO().to(userId.toString()).emit("note:deleted", notesId);
     res.status(200).json({ message: `Delete notes successfull ID:${notesId}` });
   } catch (err) {
-    res.status(500).json({ message: "Internal server error ", err });
+    console.error("CRASH IN deleteNotes:", err);
+    res
+      .status(500)
+      .json({ message: "Internal server error", error: err.message });
   }
 };
 
@@ -77,6 +98,7 @@ export const getNotesById = async (req, res) => {
 
     res.status(200).json({ note: notes });
   } catch (err) {
+    console.error("CRASH IN getNotesById:", err);
     res
       .status(500)
       .json({ message: "Internal server error", error: err.message });
@@ -94,6 +116,7 @@ export const getUserNotes = async (req, res) => {
     }
     res.status(200).json({ notes: notes });
   } catch (err) {
+    console.error("CRASH IN getUserNotes:", err);
     res
       .status(500)
       .json({ message: "Internal server error", error: err.message });

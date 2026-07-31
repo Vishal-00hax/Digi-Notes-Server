@@ -9,7 +9,7 @@ const NotesSchema = new Schema(
     },
     title: {
       type: String,
-      default: "New-Notes",
+      default: "New-Note",
     },
     text: {
       type: String,
