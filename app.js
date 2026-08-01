@@ -19,7 +19,8 @@ export const allowedOrigins = [
   "https://vishaldevtribe.com",
   "https://digi-notes-server.onrender.com/api",
   "https://digi-notes-server.onrender.com",
-  "https://ai-resume-builder.vishaldevtribe.com", // इसे सीधे यहाँ भी डाल दें ताकि तुरंत काम करे
+  "https://ai-resume-builder.vishaldevtribe.com",
+  "https://digi-notes-client.vercel.app", //
 ];
 
 app.use(
