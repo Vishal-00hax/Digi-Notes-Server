@@ -16,6 +16,9 @@
     "nodemon": "^3.1.14"
   },
   "dependencies": {
+    "@langchain/core": "^1.2.4",
+    "@langchain/langgraph": "^1.4.9",
+    "@langchain/openai": "^1.5.5",
     "bcrypt": "^6.0.0",
     "cookie": "^2.0.1",
     "cookie-parser": "^1.4.7",
@@ -26,6 +29,7 @@
     "mongoose": "^9.7.4",
     "openai": "^6.48.0",
     "remove-markdown": "^0.6.4",
-    "socket.io": "^4.8.3"
+    "socket.io": "^4.8.3",
+    "zod": "^4.4.3"
   }
 }
