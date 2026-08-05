@@ -7,6 +7,8 @@ import { getAiTools } from "../utils/ai-tools.js";
 import { StateGraph, MessagesAnnotation } from "@langchain/langgraph";
 import { SystemMessage, HumanMessage } from "@langchain/core/messages";
 
+const ACTION_TOOLS = ["create_note", "update_note", "delete_note"];
+
 export const askNotes = async (req, res) => {
   try {
     const userId = req.user._id;
