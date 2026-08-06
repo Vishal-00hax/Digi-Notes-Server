@@ -6,6 +6,7 @@ import removeMd from "remove-markdown";
 import { getAiTools } from "../utils/ai-tools.js";
 import { StateGraph, MessagesAnnotation } from "@langchain/langgraph";
 import { SystemMessage, HumanMessage } from "@langchain/core/messages";
+import Chats from "../models/chats.js";
 
 const ACTION_TOOLS = ["create_note", "update_note", "delete_note"];
 
@@ -112,7 +113,7 @@ export const askNotes = async (req, res) => {
       .filter((msg) => msg.tool_calls?.length > 0)
       .flatMap((msg) => msg.tool_calls.map((tc) => tc.name));
 
-    const shouldHideSource = calledToolNames.some((name) =>
+    const shouldHideSource = usedToolsName.some((name) =>
       ACTION_TOOLS.includes(name),
     );
 
@@ -123,12 +124,30 @@ export const askNotes = async (req, res) => {
       .trim();
 
     if (shouldHideSource) {
+      const newChat = new Chats({
+        userId: userId,
+        userQuery: question,
+        aiResponse: answerText,
+        actionTriggered: true,
+      });
+
+      await newChat.save();
+
       return res.status(200).json({
         question: question,
         answer: answerText,
         actionTriggered: true,
       });
     }
+
+    const newChat = new Chats({
+      userId: userId,
+      userQuery: question,
+      aiResponse: answerText,
+      source: relatedNotes,
+    });
+
+    await newChat.save();
 
     res.status(200).json({
       question: question,
@@ -140,5 +159,38 @@ export const askNotes = async (req, res) => {
     return res.status(500).json({
       message: "Something went wrong while processing your request",
     });
+  }
+};
+
+export const aiChats = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const page = req.query.page || 1;
+    const limit = req.query.limit || 20;
+    const skip = (page - 1) * limit;
+
+    const chats = await Chats.find({ userId })
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    const totalChats = await Chats.countDocuments({ userId });
+
+    if (!chats) {
+      return res.status(404).json({ message: "No chats found" });
+    }
+
+    res.status(200).json({
+      page,
+      limit,
+      totalChats: totalChats,
+      totalPages: Math.ceil(totalChats / limit),
+      chat: chats,
+    });
+  } catch (err) {
+    console.error("CRASH IN aiChats:", err);
+    res
+      .status(500)
+      .json({ message: "Internal server error", error: err.message });
   }
 };
