@@ -13,7 +13,7 @@ const ACTION_TOOLS = ["create_note", "update_note", "delete_note"];
 export const askNotes = async (req, res) => {
   try {
     const userId = req.user._id;
-    const { question } = req.body;
+    const { question, chats = [] } = req.body;
 
     if (!question) {
       return res.status(400).json({ message: "Please ask a question" });
@@ -61,6 +61,13 @@ export const askNotes = async (req, res) => {
       )
       .join("\n\n");
 
+    const chatHistory = chats
+      .map(
+        (c, i) =>
+          `Chat ${i + 1} - User Query: ${c.userQuery} - AI Response: ${c.aiResponse}`,
+      )
+      .join("\n\n");
+
     const tools = getAiTools(req);
     const toolNode = new ToolNode(tools);
     const LLM = llm.bindTools(tools);
@@ -102,7 +109,7 @@ export const askNotes = async (req, res) => {
         messages: [
           new SystemMessage(systemPrompt),
           new HumanMessage(
-            `Notes Context:\n${userContext}\n\nUser Prompt: ${question}`,
+            `Notes Context:\n${userContext}\n\nUser Prompt: ${question}\n\n Chat History:\n${chatHistory}`,
           ),
         ],
       },

@@ -25,15 +25,15 @@ export const userSignUp = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const accessToken = user.getAccessToken();
-    const refreshToken = user.getRefreshToken();
-
     const user = new User({
       full_name: full_name,
       email: email,
       password: hashedPassword,
-      refreshToken: refreshToken,
     });
+
+    const accessToken = user.getAccessToken();
+    const refreshToken = user.getRefreshToken();
+    user.refreshToken = refreshToken;
 
     const newUser = await user.save();
 
