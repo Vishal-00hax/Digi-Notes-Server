@@ -68,6 +68,8 @@ export const askNotes = async (req, res) => {
       )
       .join("\n\n");
 
+    console.log("Chats", chatHistory);
+
     const tools = getAiTools(req);
     const toolNode = new ToolNode(tools);
     const LLM = llm.bindTools(tools);
@@ -116,9 +118,13 @@ export const askNotes = async (req, res) => {
       { configurable: { user: req.user } },
     );
 
-    const usedToolsName = response.messages
-      .filter((msg) => msg.tool_calls?.length > 0)
-      .flatMap((msg) => msg.tool_calls.map((tc) => tc.name));
+    const usedToolsName = Array.from(
+      new Set(
+        response.messages
+          .filter((msg) => msg.tool_calls?.length > 0)
+          .flatMap((msg) => msg.tool_calls.map((tc) => tc.name)),
+      ),
+    );
 
     const shouldHideSource = usedToolsName.some((name) =>
       ACTION_TOOLS.includes(name),
@@ -136,6 +142,7 @@ export const askNotes = async (req, res) => {
         userQuery: question,
         aiResponse: answerText,
         actionTriggered: true,
+        actionTool: usedToolsName,
       });
 
       await newChat.save();
@@ -144,6 +151,7 @@ export const askNotes = async (req, res) => {
         question: question,
         answer: answerText,
         actionTriggered: true,
+        actionTool: usedToolsName,
       });
     }
 
@@ -196,6 +204,29 @@ export const aiChats = async (req, res) => {
     });
   } catch (err) {
     console.error("CRASH IN aiChats:", err);
+    res
+      .status(500)
+      .json({ message: "Internal server error", error: err.message });
+  }
+};
+
+export const deleteChat = async (req, res) => {
+  try {
+    const { chatId } = req.params;
+
+    if (!chatId) {
+      return res.status(400).json({ message: "Chat ID is required" });
+    }
+    const deletedChat = await Chats.findOneAndDelete({
+      _id: chatId,
+    });
+    if (!deletedChat) {
+      return res.status(404).json({ message: "Chat not found" });
+    }
+    res
+      .status(200)
+      .json({ message: "Chat deleted successfully", id: deletedChat._id });
+  } catch (err) {
     res
       .status(500)
       .json({ message: "Internal server error", error: err.message });

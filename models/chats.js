@@ -23,6 +23,10 @@ const ChatsSchema = new Schema(
       type: Boolean,
       default: false,
     },
+    actionTool: {
+      type: [],
+      default: ["none"],
+    },
   },
   { timestamps: true },
 );
