@@ -7,6 +7,7 @@ import { getAiTools } from "../utils/ai-tools.js";
 import { StateGraph, MessagesAnnotation } from "@langchain/langgraph";
 import { SystemMessage, HumanMessage } from "@langchain/core/messages";
 import Chats from "../models/chats.js";
+import { getIO } from "../utils/socket-io.js";
 
 const ACTION_TOOLS = ["create_note", "update_note", "delete_note"];
 
@@ -99,12 +100,22 @@ export const askNotes = async (req, res) => {
 
     const Agent = workflow.compile();
 
-    const systemPrompt = `You are an intelligent assistant managing user notes. 
-    CRITICAL RULES:
-    1. The user will ask to update or delete notes using their TITLE (e.g., "Delete my personal info note").
-    2. NEVER ask the user for a Note ID. The user does not know their IDs.
-    3. You must secretly look at the 'Notes Context' below, match the user's title to the correct Note ID, and pass that ID to your tools.
-    4. After a tool successfully runs, briefly tell the user that their task is completed.`;
+    const systemPrompt = `You are an intelligent assistant managing user notes.
+
+    CRITICAL WORKFLOW FOR MODIFYING NOTES (Create/Update/Delete):
+    
+    STEP 1: CONFIRMATION (DO THIS FIRST)
+    If the user asks to delete, update, or create a note, DO NOT call any tool immediately. 
+    First, find the relevant note from the 'Notes Context'. Then, ask the user for confirmation in a very natural way, mentioning the exact note title. 
+    Example: "I found your note titled '[Note Title]'. Should I go ahead and delete it? (Yes/No)"
+    STOP HERE. DO NOT CALL ANY TOOL.
+    
+    STEP 2: EXECUTION (DO THIS ONLY AFTER CONFIRMATION)
+    Read the 'Chat History'. If your last response was asking for confirmation, and the user's current prompt is "Yes", "do it", "sure", or a similar positive confirmation, ONLY THEN call the appropriate tool (create_note, update_note, or delete_note).
+
+    GENERAL RULES:
+    - Never ask the user for a Note ID. You match the ID secretly using the Notes Context.
+    - After the tool successfully runs, tell the user that the task is completed and summarize what was done.`;
 
     const response = await Agent.invoke(
       {
@@ -146,8 +157,10 @@ export const askNotes = async (req, res) => {
       });
 
       await newChat.save();
+      getIO().to(userId.toString()).emit("chat:created", newChat);
 
       return res.status(200).json({
+        _id: newChat._id,
         question: question,
         answer: answerText,
         actionTriggered: true,
@@ -163,8 +176,10 @@ export const askNotes = async (req, res) => {
     });
 
     await newChat.save();
+    getIO().to(userId.toString()).emit("chat:created", newChat);
 
     res.status(200).json({
+      _id: newChat._id,
       question: question,
       answer: answerText,
       source: relatedNotes,
@@ -213,16 +228,21 @@ export const aiChats = async (req, res) => {
 export const deleteChat = async (req, res) => {
   try {
     const { chatId } = req.params;
+    const userId = req.user._id;
 
     if (!chatId) {
       return res.status(400).json({ message: "Chat ID is required" });
     }
     const deletedChat = await Chats.findOneAndDelete({
       _id: chatId,
+      userId: userId,
     });
     if (!deletedChat) {
       return res.status(404).json({ message: "Chat not found" });
     }
+    getIO()
+      .to(userId.toString())
+      .emit("chat:deleted", deletedChat._id.toString());
     res
       .status(200)
       .json({ message: "Chat deleted successfully", id: deletedChat._id });

@@ -25,7 +25,7 @@ const ChatsSchema = new Schema(
     },
     actionTool: {
       type: [],
-      default: ["none"],
+      default: [],
     },
   },
   { timestamps: true },

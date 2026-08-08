@@ -18,6 +18,6 @@ notesRouter.get("/get/:notesId", userAuth, getNotesById);
 notesRouter.get("/ai/chats", userAuth, aiChats);
 notesRouter.patch("/update", userAuth, updateNotes);
 notesRouter.delete("/delete/:notesId", userAuth, deleteNotes);
-notesRouter.delete("/chat/delete/:chatId", deleteChat);
+notesRouter.delete("/chat/delete/:chatId", userAuth, deleteChat);
 
 export default notesRouter;
