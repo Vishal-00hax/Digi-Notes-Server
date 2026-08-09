@@ -144,11 +144,20 @@ export const refreshAccessToken = async (req, res) => {
     }
 
     const newAccessToken = user.getAccessToken();
+    const newRefreshToken = user.getRefreshToken();
+
+    user.refreshToken = newRefreshToken;
+    await user.save();
 
     res.cookie("accessToken", newAccessToken, {
       ...COOKIE_OPTIONS,
       maxAge: 15 * 60 * 1000,
-    });
+    }); // 15 min
+
+    res.cookie("refreshToken", newRefreshToken, {
+      ...COOKIE_OPTIONS,
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    }); // 7 days
 
     return res.status(200).json({ message: "Access token refreshed" });
   } catch (err) {
