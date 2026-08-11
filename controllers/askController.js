@@ -49,18 +49,15 @@ export const askNotes = async (req, res) => {
       },
     ]);
 
-    if (relatedNotes.length === 0) {
-      return res
-        .status(404)
-        .json({ message: "I did not found any relevant notes" });
-    }
-
-    const userContext = relatedNotes
-      .map(
-        (n, i) =>
-          `Note ${i + 1} - Note ID: ${n._id} - Title: ${n.title || "Untitled"} - Date: ${n.updatedAt} - Content: ${n.text}`,
-      )
-      .join("\n\n");
+    const userContext =
+      relatedNotes.length > 0
+        ? relatedNotes
+            .map(
+              (n, i) =>
+                `Note ${i + 1} - Note ID: ${n._id} - Title: ${n.title || "Untitled"} - Date: ${n.updatedAt} - Content: ${n.text}`,
+            )
+            .join("\n\n")
+        : "No matching notes found in the database.";
 
     const chatHistory = chats
       .map(
