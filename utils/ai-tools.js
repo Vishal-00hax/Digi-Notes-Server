@@ -1,5 +1,5 @@
 import { tool } from "@langchain/core/tools";
-import { z } from "zod";
+import { string, z } from "zod";
 import {
   createNotes,
   updateNotes,
@@ -47,7 +47,10 @@ export const getAiTools = (req) => {
     async ({ title, text }) => {
       const safeTitle = sanitizeNoteContent(title);
       const safeText = validateContentLength(sanitizeNoteContent(text));
-      const customReq = { user: req.user, body: { title, text } };
+      const customReq = {
+        user: req.user,
+        body: { title: safeTitle, text: safeText },
+      };
       const result = await ProxyWrapperController(createNotes, customReq);
       return result;
     },
@@ -70,7 +73,7 @@ export const getAiTools = (req) => {
 
       const customReq = {
         user: req.user,
-        body: { notesId: noteId, title, text },
+        body: { notesId: noteId, title: safeTitle, text: safeText },
       };
       const result = await ProxyWrapperController(updateNotes, customReq);
       return result;
@@ -119,9 +122,9 @@ export const getAiTools = (req) => {
         console.log(`🔍 Searching Web (Tavily) for: ${query}`);
 
         const response = await tvly.search(query, {
-          max_results: 3,
-          include_answer: false,
-          exclude_domains: ["reddit.com", "quora.com", "pinterest.com"], // ✅ Layer 4 — unreliable/user-generated sources hataye
+          maxResults: 3,
+          includeAnswer: false,
+          excludeDomains: ["reddit.com", "quora.com", "pinterest.com"], // ✅ Layer 4 — unreliable/user-generated sources hataye
         });
 
         const finalResults = (response.results || []).map((res) => ({

@@ -33,7 +33,7 @@ export const userSignUp = async (req, res) => {
 
     const accessToken = user.getAccessToken();
     const refreshToken = user.getRefreshToken();
-    user.refreshToken = refreshToken;
+    user.refreshToken.push(refreshToken);
 
     const newUser = await user.save();
 
@@ -71,7 +71,7 @@ export const userLogIn = async (req, res) => {
     const accessToken = user.getAccessToken();
     const refreshToken = user.getRefreshToken();
 
-    user.refreshToken = refreshToken;
+    user.refreshToken.push(refreshToken);
     await user.save();
 
     res.cookie("accessToken", accessToken, {
@@ -95,9 +95,12 @@ export const userLogIn = async (req, res) => {
 export const userLogout = async (req, res) => {
   try {
     const userId = req.user?._id;
+    const incomingRefreshToken = req.cookies?.refreshToken;
 
-    if (userId) {
-      await User.findByIdAndUpdate(userId, { refreshToken: null });
+    if (userId && incomingRefreshToken) {
+      const user = await User.findByIdAndUpdate(userId, {
+        $pull: { refreshToken: incomingRefreshToken },
+      });
     }
 
     res.clearCookie("accessToken", COOKIE_OPTIONS);
@@ -137,7 +140,7 @@ export const refreshAccessToken = async (req, res) => {
     const decoded = jwt.verify(incomingRefreshToken, process.env.JWT_SECRATE);
 
     const user = await User.findById(decoded._id);
-    if (!user || user.refreshToken !== incomingRefreshToken) {
+    if (!user || !user.refreshToken.includes(incomingRefreshToken)) {
       return res
         .status(401)
         .json({ message: "Invalid refresh token, please login again" });
@@ -146,7 +149,10 @@ export const refreshAccessToken = async (req, res) => {
     const newAccessToken = user.getAccessToken();
     const newRefreshToken = user.getRefreshToken();
 
-    user.refreshToken = newRefreshToken;
+    user.refreshToken = user.refreshToken.filter(
+      (token) => token !== incomingRefreshToken,
+    );
+    user.refreshToken.push(newRefreshToken);
     await user.save();
 
     res.cookie("accessToken", newAccessToken, {
