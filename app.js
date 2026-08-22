@@ -9,6 +9,7 @@ import notesRouter from "./routes/notesRouter.js";
 import cors from "cors";
 import http from "http";
 import { initializeSocket } from "./utils/socket-io.js";
+import { connectRedis } from "./config/redisClient.js";
 
 const app = express();
 
@@ -54,12 +55,12 @@ const PORT = process.env.PORT || 7777;
 const server = http.createServer(app);
 initializeSocket(server);
 
-connectDB()
+Promise.all([connectDB(), connectRedis()])
   .then(() => {
     server.listen(PORT, () => {
       console.log(`Server is running at ${PORT}`);
     });
   })
   .catch((err) => {
-    console.log(`Database connexction err ${err}`);
+    console.log(`Startup error: ${err}`);
   });

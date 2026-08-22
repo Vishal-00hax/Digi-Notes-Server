@@ -31,6 +31,7 @@
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.7.4",
     "openai": "^6.48.0",
+    "redis": "^6.2.1",
     "remove-markdown": "^0.6.4",
     "socket.io": "^4.8.3",
     "zod": "^4.4.3"
