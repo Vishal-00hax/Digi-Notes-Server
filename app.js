@@ -66,6 +66,4 @@ connectDB()
   });
 
 // Connect Redis independently — don't block server startup on it
-connectRedis().catch((err) => {
-  console.error("Redis failed to connect at startup:", err);
-});
+connectRedis();
