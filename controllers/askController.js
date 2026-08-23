@@ -12,6 +12,25 @@ import {
 } from "@langchain/core/messages";
 import Chats from "../models/chats.js";
 import { getIO } from "../utils/socket-io.js";
+import { redisClient } from "../config/redisClient.js";
+
+const CHAT_TTL = 300;
+const Chats_List_Key = (userId, page, limit) =>
+  `chats:list:${userId}:${page}:${limit}`;
+const Chats_Detail_Key = (chatId) => `chats:detail:${chatId}`;
+
+const InvalidateChatsCache = async (userId, chatId) => {
+  try {
+    const listKeys = await redisClient.keys(`chats:list:${userId}:*`);
+    const keysToDelete = [...listKeys];
+    if (chatId) keysToDelete.push(Chats_Detail_Key(chatId));
+    if (keysToDelete.length > 0) {
+      await redisClient.del(keysToDelete);
+    }
+  } catch (err) {
+    console.error("Redis cache invalidation notes error:", err);
+  }
+};
 
 const ACTION_TOOLS = [
   "create_note",
@@ -188,6 +207,7 @@ STRICT RULES:
       });
 
       await newChat.save();
+      await InvalidateChatsCache(userId);
       getIO().to(userId.toString()).emit("chat:created", newChat);
 
       return res.status(200).json({
@@ -207,6 +227,7 @@ STRICT RULES:
     });
 
     await newChat.save();
+    await InvalidateChatsCache(userId);
     getIO().to(userId.toString()).emit("chat:created", newChat);
 
     res.status(200).json({
@@ -229,6 +250,17 @@ export const aiChats = async (req, res) => {
     const page = req.query.page || 1;
     const limit = req.query.limit || 20;
     const skip = (page - 1) * limit;
+    const cachedKey = Chats_List_Key(userId, page, limit);
+
+    try {
+      const cached = await redisClient.get(cachedKey);
+      if (cached) {
+        console.log("🟢 CHATS SERVED FROM REDIS CACHE");
+        return res.status(200).json(JSON.parse(cached));
+      }
+    } catch (cacheErr) {
+      console.error("Redis read error (aiChats):", cacheErr);
+    }
 
     const chats = await Chats.find({ userId })
       .sort({ createdAt: -1 })
@@ -237,17 +269,25 @@ export const aiChats = async (req, res) => {
 
     const totalChats = await Chats.countDocuments({ userId });
 
-    if (!chats) {
-      return res.status(404).json({ message: "No chats found" });
-    }
-
-    res.status(200).json({
+    const responsePayload = {
       page,
       limit,
       totalChats: totalChats,
       totalPages: Math.ceil(totalChats / limit),
       chat: chats,
-    });
+    };
+
+    try {
+      await redisClient.setEx(
+        cachedKey,
+        CHAT_TTL,
+        JSON.stringify(responsePayload),
+      );
+    } catch (cacheErr) {
+      console.error("Redis write error (aiChats):", cacheErr);
+    }
+    console.log("🔵 CHATS SERVED FROM MONGODB");
+    res.status(200).json(responsePayload);
   } catch (err) {
     console.error("CRASH IN aiChats:", err);
     res
@@ -274,6 +314,7 @@ export const deleteChat = async (req, res) => {
     getIO()
       .to(userId.toString())
       .emit("chat:deleted", deletedChat._id.toString());
+    await InvalidateChatsCache(userId, chatId);
     res
       .status(200)
       .json({ message: "Chat deleted successfully", id: deletedChat._id });

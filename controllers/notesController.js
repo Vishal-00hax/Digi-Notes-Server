@@ -113,7 +113,7 @@ export const getNotesById = async (req, res) => {
     try {
       const cached = await redisClient.get(cacheKey);
       if (cached) {
-        console.log("🟢 SERVED FROM REDIS CACHE");
+        console.log("🟢 NOTES SERVED FROM REDIS CACHE");
         return res.status(200).json({ note: JSON.parse(cached) });
       }
     } catch (cacheErr) {
@@ -134,7 +134,7 @@ export const getNotesById = async (req, res) => {
       console.error("Redis write error (getNotesById):", cacheErr);
     }
 
-    console.log("🔵 SERVED FROM MONGODB");
+    console.log("🔵 NOTES SERVED FROM MONGODB");
     res.status(200).json({ note: notes });
   } catch (err) {
     console.error("CRASH IN getNotesById:", err);
@@ -152,7 +152,7 @@ export const getUserNotes = async (req, res) => {
     try {
       const cached = await redisClient.get(cacheKey);
       if (cached) {
-        console.log("🟢 SERVED FROM REDIS CACHE");
+        console.log("🟢 NOTES SERVED FROM REDIS CACHE");
         return res.status(200).json({ notes: JSON.parse(cached) });
       }
     } catch (cacheErr) {
@@ -172,7 +172,7 @@ export const getUserNotes = async (req, res) => {
       console.error("Redis write error (getUserNotes):", cacheErr);
     }
 
-    console.log("🔵 SERVED FROM MONGODB");
+    console.log("🔵 NOTES SERVED FROM MONGODB");
     res.status(200).json({ notes: notes });
   } catch (err) {
     console.error("CRASH IN getUserNotes:", err);

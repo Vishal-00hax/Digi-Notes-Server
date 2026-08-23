@@ -29,7 +29,7 @@ export const allowedOrigins = [
 app.use(
   cors({
     origin: function (origin, callback) {
-      // Allow requests with no origin (जैसे Postman या server-to-server)
+      // Allow requests with no origin
       if (!origin) return callback(null, true);
 
       // check if origin is in allowedOrigins
@@ -42,8 +42,8 @@ app.use(
     },
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"], // यह हेडर जोड़ना ज़रूरी है
-    optionsSuccessStatus: 200, // कुछ पुराने ब्राउज़र्स 204 की जगह 200 मांगते हैं
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+    optionsSuccessStatus: 200,
   }),
 );
 
@@ -55,12 +55,17 @@ const PORT = process.env.PORT || 7777;
 const server = http.createServer(app);
 initializeSocket(server);
 
-Promise.all([connectDB(), connectRedis()])
+connectDB()
   .then(() => {
     server.listen(PORT, () => {
       console.log(`Server is running at ${PORT}`);
     });
   })
   .catch((err) => {
-    console.log(`Startup error: ${err}`);
+    console.log(`Data-Base connection error : ${err}`);
   });
+
+// Connect Redis independently — don't block server startup on it
+connectRedis().catch((err) => {
+  console.error("Redis failed to connect at startup:", err);
+});
