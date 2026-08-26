@@ -10,7 +10,7 @@ export const userAuth = async (req, res, next) => {
       return res.status(401).json({ message: "Access token missing" });
     }
 
-    const decoded = jwt.verify(accessToken, process.env.JWT_SECRATE);
+    const decoded = jwt.verify(accessToken, process.env.JWT_SECRET);
 
     const user = await User.findById(decoded._id);
     if (!user) {

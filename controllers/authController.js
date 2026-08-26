@@ -2,6 +2,7 @@ import { json } from "express";
 import User from "../models/user.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import RefreshToken from "../models/refreshToken.js";
 
 const COOKIE_OPTIONS = {
   httpOnly: true,
@@ -9,9 +10,14 @@ const COOKIE_OPTIONS = {
   sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
 };
 
+const REFRESH_TOKEN_TTL_DAYS = 7; // 7 days
+const refreshToken_Expires = () =>
+  new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
 export const userSignUp = async (req, res) => {
   try {
     const { full_name, email, password } = req.body;
+    const userIP = req.ip;
 
     if (!full_name || !email || !password) {
       return res.status(400).json({ message: "Invalid crediancials" });
@@ -33,9 +39,17 @@ export const userSignUp = async (req, res) => {
 
     const accessToken = user.getAccessToken();
     const refreshToken = user.getRefreshToken();
-    user.refreshToken.push(refreshToken);
 
     const newUser = await user.save();
+
+    await RefreshToken.findOneAndUpdate(
+      { userId: newUser._id },
+      {
+        $push: { token: refreshToken },
+        $set: { ip: userIP, expiresAt: refreshToken_Expires() },
+      },
+      { upsert: true, new: true },
+    );
 
     res.cookie("accessToken", accessToken, {
       ...COOKIE_OPTIONS,
@@ -48,7 +62,6 @@ export const userSignUp = async (req, res) => {
     }); // 7 days
 
     newUser.password = undefined;
-    newUser.refreshToken = undefined;
 
     res.status(201).json({ user: newUser });
   } catch (err) {
@@ -59,6 +72,7 @@ export const userSignUp = async (req, res) => {
 export const userLogIn = async (req, res) => {
   try {
     const { email, password } = req.body;
+    const userIP = req.ip;
     const user = await User.findOne({ email: email }).select("-__v");
     if (!user) {
       return res.status(404).json({ message: "User not found !" });
@@ -71,8 +85,16 @@ export const userLogIn = async (req, res) => {
     const accessToken = user.getAccessToken();
     const refreshToken = user.getRefreshToken();
 
-    user.refreshToken.push(refreshToken);
     await user.save();
+
+    await RefreshToken.findOneAndUpdate(
+      { userId: user._id },
+      {
+        $push: { token: refreshToken },
+        $set: { ip: userIP, expiresAt: refreshToken_Expires() },
+      },
+      { upsert: true, new: true },
+    );
 
     res.cookie("accessToken", accessToken, {
       ...COOKIE_OPTIONS,
@@ -85,7 +107,7 @@ export const userLogIn = async (req, res) => {
     }); // 7 days
 
     user.password = undefined;
-    user.refreshToken = undefined;
+    user.__v = undefined;
     res.status(200).json({ user: user });
   } catch (err) {
     res.status(500).json({ message: "Internal server error" });
@@ -101,6 +123,10 @@ export const userLogout = async (req, res) => {
       const user = await User.findByIdAndUpdate(userId, {
         $pull: { refreshToken: incomingRefreshToken },
       });
+      const token = await RefreshToken.findOneAndDelete({
+        token: incomingRefreshToken,
+        userId: userId,
+      });
     }
 
     res.clearCookie("accessToken", COOKIE_OPTIONS);
@@ -115,13 +141,19 @@ export const userLogout = async (req, res) => {
 export const userProfile = async (req, res) => {
   try {
     const user = req.user;
+    const userId = req.user._id;
+
     user.password = undefined;
     user.__v = undefined;
-    user.refreshToken = undefined;
+
     if (!user) {
       return res.status(404).json({ message: "User not found." });
     }
-    res.status(200).json({ user: user });
+
+    const sessionDoc = await RefreshToken.findOne({ userId: userId });
+    const total_session = sessionDoc ? sessionDoc.token.length : 0;
+
+    res.status(200).json({ user: user, total_sessions: total_session });
   } catch (err) {
     res.status(500).json({ message: "Internal server error" });
   }
@@ -130,45 +162,91 @@ export const userProfile = async (req, res) => {
 export const refreshAccessToken = async (req, res) => {
   try {
     const incomingRefreshToken = req.cookies?.refreshToken;
-
     if (!incomingRefreshToken) {
       return res
         .status(401)
         .json({ message: "Refresh token missing, please login again" });
     }
 
-    const decoded = jwt.verify(incomingRefreshToken, process.env.JWT_SECRATE);
-
-    const user = await User.findById(decoded._id);
-    if (!user || !user.refreshToken.includes(incomingRefreshToken)) {
+    let decoded;
+    try {
+      decoded = jwt.verify(incomingRefreshToken, process.env.JWT_SECRET);
+    } catch (err) {
+      console.error("JWT verify error:", err.message);
       return res
         .status(401)
-        .json({ message: "Invalid refresh token, please login again" });
+        .json({ message: "Invalid or expired refresh token" });
+    }
+
+    const userId = decoded._id;
+    if (!userId) {
+      return res.status(401).json({ message: "Invalid token payload" });
+    }
+
+    // Find the doc ONLY if it actually contains this exact token
+    const refreshTokenDoc = await RefreshToken.findOne({
+      userId,
+      token: incomingRefreshToken,
+    });
+
+    if (!refreshTokenDoc) {
+      return res
+        .status(401)
+        .json({ message: "Refresh token not found or already used" });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(401).json({ message: "User not found" });
     }
 
     const newAccessToken = user.getAccessToken();
     const newRefreshToken = user.getRefreshToken();
 
-    user.refreshToken = user.refreshToken.filter(
-      (token) => token !== incomingRefreshToken,
+    // Rotate: remove old token, add new one
+    refreshTokenDoc.token = refreshTokenDoc.token.filter(
+      (t) => t !== incomingRefreshToken,
     );
-    user.refreshToken.push(newRefreshToken);
-    await user.save();
+    refreshTokenDoc.token.push(newRefreshToken);
+    refreshTokenDoc.expiresAt = refreshToken_Expires(); // refresh sliding expiry
+    await refreshTokenDoc.save();
 
     res.cookie("accessToken", newAccessToken, {
       ...COOKIE_OPTIONS,
-      maxAge: 15 * 60 * 1000,
-    }); // 15 min
+      maxAge: 15 * 60 * 1000, // 15 min — fix the 1-min bug too
+    });
 
     res.cookie("refreshToken", newRefreshToken, {
       ...COOKIE_OPTIONS,
       maxAge: 7 * 24 * 60 * 60 * 1000,
-    }); // 7 days
+    });
 
     return res.status(200).json({ message: "Access token refreshed" });
   } catch (err) {
-    return res.status(401).json({
-      message: "Invalid or expired refresh token, please login again",
-    });
+    console.error("Refresh error:", err);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const logoutAllSessions = async (req, res) => {
+  try {
+    const userId = req.user?._id;
+    const updateToken = await RefreshToken.findOneAndUpdate(
+      {
+        userId: userId,
+      },
+      { $set: { token: [] } },
+    );
+    if (!updateToken) {
+      return res.status(404).json({ message: "Tokens not found !" });
+    }
+    res.clearCookie("accessToken", COOKIE_OPTIONS);
+    res.clearCookie("refreshToken", COOKIE_OPTIONS);
+    return res
+      .status(200)
+      .json({ message: "Logout successfull from all sessions" });
+  } catch (err) {
+    console.error("logoutAllSessions error:", err);
+    return res.status(500).json({ message: "Internal server error" });
   }
 };

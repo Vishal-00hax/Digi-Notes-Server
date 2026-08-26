@@ -25,10 +25,6 @@ const UserSchema = mongoose.Schema(
       type: String,
       required: true,
     },
-    refreshToken: {
-      type: [String],
-      default: [],
-    },
   },
   { timestamps: true },
 );
@@ -36,16 +32,20 @@ const UserSchema = mongoose.Schema(
 UserSchema.methods.getAccessToken = function () {
   return jwt.sign(
     { _id: this._id, email: this.email },
-    process.env.JWT_SECRATE,
-    { expiresIn: "15m" },
+    process.env.JWT_SECRET,
+    {
+      expiresIn: "15m",
+    },
   );
 };
 
 UserSchema.methods.getRefreshToken = function () {
   return jwt.sign(
     { _id: this._id, email: this.email },
-    process.env.JWT_SECRATE,
-    { expiresIn: "7d" },
+    process.env.JWT_SECRET,
+    {
+      expiresIn: "7d",
+    },
   );
 };
 

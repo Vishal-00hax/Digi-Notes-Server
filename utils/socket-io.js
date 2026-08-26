@@ -42,7 +42,7 @@ const authSocket = (socket, next) => {
       return next(new Error("Authentication required"));
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRATE);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
     socket.userId = decoded._id;
     next();
   } catch (err) {
