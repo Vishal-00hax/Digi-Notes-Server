@@ -3,6 +3,7 @@ import User from "../models/user.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import RefreshToken from "../models/refreshToken.js";
+import { getIO } from "../utils/socket-io.js";
 
 const COOKIE_OPTIONS = {
   httpOnly: true,
@@ -93,7 +94,7 @@ export const userLogIn = async (req, res) => {
         $push: { token: refreshToken },
         $set: { ip: userIP, expiresAt: refreshToken_Expires() },
       },
-      { upsert: true, new: true },
+      { upsert: true, new: true }, // upsert is a database operation that inserts a new row if a record does not exist or updates the existing row if it already matches a unique key or index.
     );
 
     res.cookie("accessToken", accessToken, {
@@ -231,17 +232,28 @@ export const refreshAccessToken = async (req, res) => {
 export const logoutAllSessions = async (req, res) => {
   try {
     const userId = req.user?._id;
-    const updateToken = await RefreshToken.findOneAndUpdate(
-      {
-        userId: userId,
-      },
-      { $set: { token: [] } },
-    );
-    if (!updateToken) {
+
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const deleteToken = await RefreshToken.deleteOne({
+      userId: userId,
+    });
+    if (deleteToken.deletedCount === 0) {
       return res.status(404).json({ message: "Tokens not found !" });
     }
     res.clearCookie("accessToken", COOKIE_OPTIONS);
     res.clearCookie("refreshToken", COOKIE_OPTIONS);
+
+    try {
+      const io = getIO();
+      io.to(userId.toString()).emit("force-logout"); // room name = userId.toString() (aapke socket file ke hisaab se)
+    } catch (socketErr) {
+      console.error("Socket emit failed:", socketErr.message);
+      // socket fail hone par bhi logout API fail nahi honi chahiye
+    }
+
     return res
       .status(200)
       .json({ message: "Logout successfull from all sessions" });

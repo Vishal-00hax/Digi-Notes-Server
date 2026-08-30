@@ -6,6 +6,7 @@ import {
   userLogout,
   userProfile,
   refreshAccessToken,
+  logoutAllSessions,
 } from "../controllers/authController.js";
 
 const authRouter = express.Router();
@@ -15,5 +16,6 @@ authRouter.post("/login", userLogIn);
 authRouter.post("/refresh", refreshAccessToken);
 authRouter.post("/logout", userAuth, userLogout);
 authRouter.get("/profile", userAuth, userProfile);
+authRouter.post("/all-session-logout", userAuth, logoutAllSessions);
 
 export default authRouter;
