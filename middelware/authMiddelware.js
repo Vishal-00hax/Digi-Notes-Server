@@ -17,6 +17,19 @@ export const userAuth = async (req, res, next) => {
       return res.status(401).json({ message: "User not found" });
     }
 
+    if (user.tokenValidAfter) {
+      // Convert DB date to seconds to match JWT iat format
+      const validAfterSeconds = Math.floor(
+        user.tokenValidAfter.getTime() / 1000,
+      );
+
+      if (decoded.iat < validAfterSeconds) {
+        return res
+          .status(401)
+          .json({ message: "Session invalidated. Please log in again." });
+      }
+    }
+
     req.user = user;
     next();
   } catch (err) {

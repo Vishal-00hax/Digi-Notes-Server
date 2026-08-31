@@ -25,6 +25,10 @@ const UserSchema = mongoose.Schema(
       type: String,
       required: true,
     },
+    tokenValidAfter: {
+      type: Date,
+      default: null,
+    },
   },
   { timestamps: true },
 );

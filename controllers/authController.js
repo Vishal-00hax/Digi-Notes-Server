@@ -121,13 +121,10 @@ export const userLogout = async (req, res) => {
     const incomingRefreshToken = req.cookies?.refreshToken;
 
     if (userId && incomingRefreshToken) {
-      const user = await User.findByIdAndUpdate(userId, {
-        $pull: { refreshToken: incomingRefreshToken },
-      });
-      const token = await RefreshToken.findOneAndDelete({
-        token: incomingRefreshToken,
-        userId: userId,
-      });
+      await RefreshToken.updateOne(
+        { userId: userId },
+        { $pull: { token: incomingRefreshToken } },
+      );
     }
 
     res.clearCookie("accessToken", COOKIE_OPTIONS);
@@ -243,6 +240,11 @@ export const logoutAllSessions = async (req, res) => {
     if (deleteToken.deletedCount === 0) {
       return res.status(404).json({ message: "Tokens not found !" });
     }
+
+    await User.findByIdAndUpdate(userId, {
+      tokenValidAfter: new Date(),
+    });
+
     res.clearCookie("accessToken", COOKIE_OPTIONS);
     res.clearCookie("refreshToken", COOKIE_OPTIONS);
 
