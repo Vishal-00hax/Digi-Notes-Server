@@ -143,6 +143,7 @@ export const userProfile = async (req, res) => {
 
     user.password = undefined;
     user.__v = undefined;
+    user.tokenValidAfter = undefined;
 
     if (!user) {
       return res.status(404).json({ message: "User not found." });
