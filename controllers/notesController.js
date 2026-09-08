@@ -71,10 +71,11 @@ export const updateNotes = async (req, res) => {
     notes.embedding = emembedding;
     const updatedNote = await notes.save();
     await invalidateNotesCache(userId, notesId); // both list and detail are stale
+    updatedNote.embedding = undefined; // don't send embedding back to client
     getIO().to(userId.toString()).emit("note:updated", updatedNote);
     res
       .status(200)
-      .json({ message: "Notes updated successfull", data: updatedNote._id });
+      .json({ message: "Notes updated successfull", data: updatedNote });
   } catch (err) {
     console.error("CRASH IN updateNotes:", err);
     res
