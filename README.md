@@ -32,6 +32,15 @@ Unlike a standard RAG chatbot that only retrieves and summarizes information, Di
 - **Stateful agent graph:** a LangGraph `StateGraph` routes between an LLM reasoning node and a tool-execution node, looping until the agent produces a final response — enabling multi-step tool use (e.g., search the web, then create a note from the results) within a single user request.
 - **Resilient caching:** every cache read/write is isolated in its own try/catch so a Redis outage never surfaces as a user-facing error — the app transparently falls back to MongoDB.
 
+## Testing & Performance Validation
+
+To ensure system reliability, real-time sync stability, and optimal performance during complex AI reasoning tasks, Digi-Notes implements a rigorous testing strategy across both the frontend and backend.
+
+- **Backend Unit Testing:** Built with **Jest** to isolate and verify Express API routes, secure JWT authentication flows, Redis cache fallbacks, and the LangGraph agent's routing logic (utilizing mocked LLM and Vector Search responses).
+- **Frontend Unit Testing:** Utilizes **Jest** to validate React component rendering, Redux Toolkit state mutations, and real-time Socket.IO event handling, ensuring a predictable user interface.
+- **Load Testing:** Executed via **Grafana k6** to simulate concurrent user sessions. This validates the resilience of the Node.js server, the efficiency of the Socket.IO broadcast mechanisms, and the Redis cache hit/miss rates under heavy traffic.
+- **Endpoint Performance Testing:** Automated with **Grafana k6** to benchmark API latency. This guarantees standard CRUD operations remain lightning fast.
+
 ---
 
-*Digi-Notes demonstrates end-to-end ownership of a modern AI product: schema design for vector search, agent orchestration, real-time systems, caching strategy, and production-grade auth — not just a wrapper around an LLM API call.*
+_Digi-Notes demonstrates end-to-end ownership of a modern AI product: schema design for vector search, agent orchestration, real-time systems, caching strategy, and production-grade auth — not just a wrapper around an LLM API call._
