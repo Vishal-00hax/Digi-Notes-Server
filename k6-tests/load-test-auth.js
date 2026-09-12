@@ -4,11 +4,11 @@ import { check, sleep, group } from "k6";
 // ============================================
 // CONFIGURATION
 // ============================================
-const BASE_URL = __ENV.BASE_URL || "https://digi-notes-client.vercel.app";
+const BASE_URL = __ENV.BASE_URL || "https://your-app-name.onrender.com";
 const AUTH_PREFIX = "/api/auth";
 
-const EMAIL = __ENV.TEST_EMAIL || "testuser@example.com";
-const PASSWORD = __ENV.TEST_PASSWORD || "testpassword123";
+const EMAIL = (__ENV.TEST_EMAIL || "testuser@example.com").trim();
+const PASSWORD = (__ENV.TEST_PASSWORD || "testpassword123").trim();
 
 // IMPORTANT: aapka accessToken sirf 15 min mein expire hota hai.
 // Isliye test duration 15 min se kam rakho, warna beech mein
@@ -49,7 +49,9 @@ export default function () {
   // ------------------------------------------
   group("2. Login", function () {
     // DEBUG: email value confirm karo (password kabhi log mat karo)
-    console.log(`DEBUG - Attempting login with EMAIL: "${EMAIL}"`);
+    console.log(
+      `DEBUG - Attempting login with EMAIL: "${EMAIL}" (length: ${EMAIL.length})`,
+    );
 
     const payload = JSON.stringify({
       email: EMAIL,
