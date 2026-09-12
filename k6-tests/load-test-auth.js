@@ -4,7 +4,7 @@ import { check, sleep, group } from "k6";
 // ============================================
 // CONFIGURATION
 // ============================================
-const BASE_URL = "https://digi-notes-client.vercel.app";
+const BASE_URL = __ENV.BASE_URL || "https://digi-notes-client.vercel.app";
 const AUTH_PREFIX = "/api/auth";
 
 const EMAIL = __ENV.TEST_EMAIL || "testuser@example.com";

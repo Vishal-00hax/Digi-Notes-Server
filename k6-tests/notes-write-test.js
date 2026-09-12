@@ -6,9 +6,19 @@ import { check, sleep, group } from "k6";
 // call karte hain (createEmbedding). Har request
 // ki COST hai aur latency bhi zyada ho sakti hai.
 // Isliye VUs bahut kam rakhe gaye hain.
+//
+// ⚠️ ADDITIONAL WARNING: BASE_URL Vercel domain hai
+// jo backend ko proxy/rewrite karta hai. Vercel Hobby
+// plan par serverless functions ka DEFAULT TIMEOUT
+// ~10 seconds hota hai. Agar Render backend response
+// dene mein 10 sec se zyada leta hai (jaise cold start
+// ya heavy embedding call ke waqt), to Vercel khud hi
+// 504 Gateway Timeout de dega -- chahe Render abhi bhi
+// process kar raha ho. Ye Render ki galti nahi, Vercel
+// ki proxy timeout limit hai.
 // ============================================
 
-const BASE_URL = "https://digi-notes-client.vercel.app";
+const BASE_URL = __ENV.BASE_URL || "https://digi-notes-client.vercel.app";
 const AUTH_PREFIX = "/api/auth";
 
 const EMAIL = __ENV.TEST_EMAIL || "testuser@example.com";

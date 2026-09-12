@@ -6,6 +6,13 @@ on:
   pull_request:
     branches: ["main", "master"]
 
+# Agar naya push aa jaaye purane wale ke chalte hue, to purana
+# k6 run cancel kar do -- taaki ek saath 2 load tests na chalein
+# aur free tier app par double load na pade
+concurrency:
+  group: k6-tests-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test-backend:
     runs-on: ubuntu-latest
@@ -16,3 +23,51 @@ jobs:
           node-version: "22"
       - run: npm install --legacy-peer-deps
       - run: npm test
+
+  k6-load-test:
+    # Ye job SIRF tab chalega jab:
+    # 1. test-backend job successfully pass ho chuka ho
+    # 2. Event "push" ho (pull_request nahi -- forks ke
+    #    liye secrets available nahi hote, isliye login
+    #    fail ho jayega)
+    needs: test-backend
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # ------------------------------------------
+      # Render free tier app 15 min inactivity ke
+      # baad so jaata hai. Load test se pehle ek
+      # request bhej kar jagao, warna pehla real
+      # request 30-50 sec le sakta hai aur test ka
+      # data skew ho sakta hai.
+      # ------------------------------------------
+      - name: Wake up Render app (cold start handle)
+        run: |
+          echo "Waking up the app..."
+          curl -s -o /dev/null -w "%{http_code}" ${{ secrets.BASE_URL }} || true
+          echo "Waiting for app to fully wake up..."
+          sleep 40
+
+      - name: Run k6 - Auth + Read Load Test
+        uses: grafana/k6-action@v0.3.1
+        with:
+          filename: k6-tests/load-test-auth.js
+        env:
+          BASE_URL: ${{ secrets.BASE_URL }}
+          TEST_EMAIL: ${{ secrets.TEST_EMAIL }}
+          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+
+      # ⚠️ Ye test OpenAI embedding calls karta hai -- real
+      # cost lagti hai har run par. Chunki aapne "automatic
+      # on every push" choose kiya hai, dhyan rakhna ki
+      # main branch par kitni baar push ho raha hai.
+      - name: Run k6 - Notes Write Test (Cost Warning)
+        uses: grafana/k6-action@v0.3.1
+        with:
+          filename: k6-tests/notes-write-test.js
+        env:
+          BASE_URL: ${{ secrets.BASE_URL }}
+          TEST_EMAIL: ${{ secrets.TEST_EMAIL }}
+          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
