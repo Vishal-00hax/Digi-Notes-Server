@@ -4,17 +4,21 @@ import { check, sleep, group } from "k6";
 // ============================================
 // CONFIGURATION
 // ============================================
-let rawBaseUrl = __ENV.BASE_URL || "https://your-app-name.onrender.com";
-rawBaseUrl = rawBaseUrl.replace(/^["']|["']$/g, "").replace(/\/+$/, "");
+let rawBaseUrl = __ENV.BASE_URL || "https://digi-notes-client.vercel.app";
+
+// AGGRESSIVE SANITIZER: Removes brackets [], quotes "", '', angle brackets <>,
+// invisible spaces, and trailing slashes that might accidentally get pasted into CI secrets.
+rawBaseUrl = rawBaseUrl.replace(/[\[\]"'<>\s]/g, "").replace(/\/+$/, "");
+
 if (!/^https?:\/\//i.test(rawBaseUrl)) {
   rawBaseUrl = `https://${rawBaseUrl}`;
 }
+
 const BASE_URL = rawBaseUrl;
 const AUTH_PREFIX = "/api/auth";
 
 const EMAIL = (__ENV.TEST_EMAIL || "testuser@example.com").trim();
-const PASSWORD = (__ENV.TEST_PASSWORD || "testpassword123").trim();
-
+const PASSWORD = (__ENV.TEST_PASSWORD || "12345").trim();
 // IMPORTANT: aapka accessToken sirf 15 min mein expire hota hai.
 // Isliye test duration 15 min se kam rakho, warna beech mein
 // 401 "Access token expired" milna start ho jayega aur refresh

@@ -19,15 +19,20 @@ import { check, sleep, group } from "k6";
 // ============================================
 
 let rawBaseUrl = __ENV.BASE_URL || "https://digi-notes-client.vercel.app";
-rawBaseUrl = rawBaseUrl.replace(/^["']|["']$/g, "").replace(/\/+$/, "");
+
+// AGGRESSIVE SANITIZER: Removes brackets [], quotes "", '', angle brackets <>,
+// invisible spaces, and trailing slashes that might accidentally get pasted into CI secrets.
+rawBaseUrl = rawBaseUrl.replace(/[\[\]"'<>\s]/g, "").replace(/\/+$/, "");
+
 if (!/^https?:\/\//i.test(rawBaseUrl)) {
   rawBaseUrl = `https://${rawBaseUrl}`;
 }
+
 const BASE_URL = rawBaseUrl;
 const AUTH_PREFIX = "/api/auth";
 
-const EMAIL = __ENV.TEST_EMAIL || "testuser@example.com";
-const PASSWORD = __ENV.TEST_PASSWORD || "12345";
+const EMAIL = (__ENV.TEST_EMAIL || "testuser@example.com").trim();
+const PASSWORD = (__ENV.TEST_PASSWORD || "12345").trim();
 
 export const options = {
   // Sirf 2 VUs, 5 baar iterate -- total 10 notes create/update/delete
