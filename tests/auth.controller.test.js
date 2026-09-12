@@ -106,7 +106,11 @@ describe("Auth Controller", () => {
       expect(User.findOne).toHaveBeenCalledWith({ email: "test@test.com" });
       expect(bcrypt.hash).toHaveBeenCalledWith("password123", 10);
       expect(mockUserInstance.save).toHaveBeenCalled();
-      expect(RefreshToken.findOneAndUpdate).toHaveBeenCalled();
+      expect(RefreshToken.findOneAndUpdate).toHaveBeenCalledWith(
+        { userId: "new_user_id" },
+        expect.any(Object),
+        { upsert: true, returnDocument: "after" },
+      );
       expect(res.cookie).toHaveBeenCalledTimes(2);
       expect(res.status).toHaveBeenCalledWith(201);
       expect(res.json).toHaveBeenCalledWith({ user: expect.any(Object) });

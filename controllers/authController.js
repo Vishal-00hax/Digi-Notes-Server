@@ -49,7 +49,7 @@ export const userSignUp = async (req, res) => {
         $push: { token: refreshToken },
         $set: { ip: userIP, expiresAt: refreshToken_Expires() },
       },
-      { upsert: true, new: true },
+      { upsert: true, returnDocument: "after" },
     );
 
     res.cookie("accessToken", accessToken, {
@@ -94,7 +94,7 @@ export const userLogIn = async (req, res) => {
         $push: { token: refreshToken },
         $set: { ip: userIP, expiresAt: refreshToken_Expires() },
       },
-      { upsert: true, new: true }, // upsert is a database operation that inserts a new row if a record does not exist or updates the existing row if it already matches a unique key or index.
+      { upsert: true, returnDocument: "after" }, // upsert is a database operation that inserts a new row if a record does not exist or updates the existing row if it already matches a unique key or index.
     );
 
     res.cookie("accessToken", accessToken, {
