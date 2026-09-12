@@ -4,11 +4,11 @@ import { check, sleep, group } from "k6";
 // ============================================
 // CONFIGURATION
 // ============================================
-const BASE_URL = __ENV.BASE_URL || "https://digi-notes-client.vercel.app";
+const BASE_URL = __ENV.BASE_URL || "https://your-app-name.onrender.com";
 const AUTH_PREFIX = "/api/auth";
 
 const EMAIL = __ENV.TEST_EMAIL || "testuser@example.com";
-const PASSWORD = __ENV.TEST_PASSWORD || "12345";
+const PASSWORD = __ENV.TEST_PASSWORD || "testpassword123";
 
 // IMPORTANT: aapka accessToken sirf 15 min mein expire hota hai.
 // Isliye test duration 15 min se kam rakho, warna beech mein
@@ -16,12 +16,10 @@ const PASSWORD = __ENV.TEST_PASSWORD || "12345";
 // token flow alag se handle karna padega.
 
 export const options = {
-  stages: [
-    { duration: "30s", target: 5 },
-    { duration: "1m", target: 10 },
-    { duration: "1m", target: 10 },
-    { duration: "30s", target: 0 },
-  ],
+  // TEMPORARY: debugging ke liye sirf 1 VU, 1 iteration.
+  // Jab issue fix ho jaaye, to upar wale stages wapas kar dena.
+  vus: 1,
+  iterations: 1,
   thresholds: {
     http_req_duration: ["p(95)<3000"],
     http_req_failed: ["rate<0.05"],
@@ -60,6 +58,15 @@ export default function () {
     };
 
     const res = http.post(`${BASE_URL}${AUTH_PREFIX}/login`, payload, params);
+
+    // DEBUG: agar login fail ho, to exact status + response body
+    // print karo -- isse pata chalega CI mein exact kya error aa
+    // raha hai (403 CORS block? 429 rate limit? 500 server error?)
+    if (res.status !== 200) {
+      console.log(
+        `LOGIN FAILED - Status: ${res.status} | Body: ${res.body} | Headers: ${JSON.stringify(res.headers)}`,
+      );
+    }
 
     check(res, {
       "login status is 200": (r) => r.status === 200,
@@ -106,7 +113,7 @@ export default function () {
   let firstNoteId = null;
 
   group("4. Get Notes List", function () {
-    const res = http.get(`${BASE_URL}/api/notes/user`);
+    const res = http.get(`${BASE_URL}/api/notes`);
 
     check(res, {
       "notes list status is 200": (r) => r.status === 200,
