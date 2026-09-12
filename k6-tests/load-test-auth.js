@@ -4,7 +4,7 @@ import { check, sleep, group } from "k6";
 // ============================================
 // CONFIGURATION
 // ============================================
-const BASE_URL = __ENV.BASE_URL || "https://your-app-name.onrender.com";
+const BASE_URL = __ENV.BASE_URL || "https://digi-notes-client.vercel.app";
 const AUTH_PREFIX = "/api/auth";
 
 const EMAIL = __ENV.TEST_EMAIL || "testuser@example.com";
@@ -48,6 +48,9 @@ export default function () {
   // STEP 2: Login karo (cookies automatically set ho jayengi)
   // ------------------------------------------
   group("2. Login", function () {
+    // DEBUG: email value confirm karo (password kabhi log mat karo)
+    console.log(`DEBUG - Attempting login with EMAIL: "${EMAIL}"`);
+
     const payload = JSON.stringify({
       email: EMAIL,
       password: PASSWORD,
@@ -113,7 +116,7 @@ export default function () {
   let firstNoteId = null;
 
   group("4. Get Notes List", function () {
-    const res = http.get(`${BASE_URL}/api/notes`);
+    const res = http.get(`${BASE_URL}/api/notes/user`);
 
     check(res, {
       "notes list status is 200": (r) => r.status === 200,
