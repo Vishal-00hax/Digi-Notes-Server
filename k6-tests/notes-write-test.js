@@ -18,7 +18,12 @@ import { check, sleep, group } from "k6";
 // ki proxy timeout limit hai.
 // ============================================
 
-const BASE_URL = __ENV.BASE_URL || "https://digi-notes-client.vercel.app";
+let rawBaseUrl = __ENV.BASE_URL || "https://digi-notes-client.vercel.app";
+rawBaseUrl = rawBaseUrl.replace(/^["']|["']$/g, "").replace(/\/+$/, "");
+if (!/^https?:\/\//i.test(rawBaseUrl)) {
+  rawBaseUrl = `https://${rawBaseUrl}`;
+}
+const BASE_URL = rawBaseUrl;
 const AUTH_PREFIX = "/api/auth";
 
 const EMAIL = __ENV.TEST_EMAIL || "testuser@example.com";

@@ -46,7 +46,7 @@ jobs:
       - name: Wake up Render app (cold start handle)
         run: |
           echo "Waking up the app..."
-          curl -s -o /dev/null -w "%{http_code}" ${{ secrets.BASE_URL }} || true
+          curl -s -o /dev/null -w "%{http_code}" "${{ secrets.BASE_URL }}" || true
           echo "Waiting for app to fully wake up..."
           sleep 40
 

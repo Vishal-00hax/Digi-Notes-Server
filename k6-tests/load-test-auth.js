@@ -4,7 +4,12 @@ import { check, sleep, group } from "k6";
 // ============================================
 // CONFIGURATION
 // ============================================
-const BASE_URL = __ENV.BASE_URL || "https://your-app-name.onrender.com";
+let rawBaseUrl = __ENV.BASE_URL || "https://your-app-name.onrender.com";
+rawBaseUrl = rawBaseUrl.replace(/^["']|["']$/g, "").replace(/\/+$/, "");
+if (!/^https?:\/\//i.test(rawBaseUrl)) {
+  rawBaseUrl = `https://${rawBaseUrl}`;
+}
+const BASE_URL = rawBaseUrl;
 const AUTH_PREFIX = "/api/auth";
 
 const EMAIL = (__ENV.TEST_EMAIL || "testuser@example.com").trim();
