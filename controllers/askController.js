@@ -28,7 +28,7 @@ const InvalidateChatsCache = async (userId, chatId) => {
       await redisClient.del(keysToDelete);
     }
   } catch (err) {
-    console.error("Redis cache invalidation notes error:", err);
+    console.error("Redis cache invalidation chats error:", err);
   }
 };
 
@@ -42,7 +42,10 @@ const ACTION_TOOLS = [
 export const askNotes = async (req, res) => {
   try {
     const userId = req.user._id;
-    const { question, chats = [] } = req.body;
+    const { question } = req.body;
+    // Guard against a null/non-array `chats` payload so a malformed request
+    // cannot crash on `chats.length`.
+    const chats = Array.isArray(req.body.chats) ? req.body.chats : [];
 
     if (!question) {
       return res.status(400).json({ message: "Please ask a question" });
@@ -247,8 +250,10 @@ STRICT RULES:
 export const aiChats = async (req, res) => {
   try {
     const userId = req.user._id;
-    const page = req.query.page || 1;
-    const limit = req.query.limit || 20;
+    // req.query values arrive as strings; normalise to positive integers so the
+    // pagination math and the cache key are identical for every caller.
+    const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+    const limit = Math.max(parseInt(req.query.limit, 10) || 20, 1);
     const skip = (page - 1) * limit;
     const cachedKey = Chats_List_Key(userId, page, limit);
 
@@ -319,6 +324,7 @@ export const deleteChat = async (req, res) => {
       .status(200)
       .json({ message: "Chat deleted successfully", id: deletedChat._id });
   } catch (err) {
+    console.error("CRASH IN deleteChat:", err);
     res
       .status(500)
       .json({ message: "Internal server error", error: err.message });

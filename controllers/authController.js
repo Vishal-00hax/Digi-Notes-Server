@@ -1,4 +1,3 @@
-import { json } from "express";
 import User from "../models/user.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
@@ -11,9 +10,12 @@ const COOKIE_OPTIONS = {
   sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
 };
 
-const REFRESH_TOKEN_TTL_DAYS = 7; // 7 days
+const ACCESS_TOKEN_TTL_MS = 15 * 60 * 1000; // 15 min
+const REFRESH_TOKEN_TTL_DAYS = 7;
+const REFRESH_TOKEN_TTL_MS = REFRESH_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000; // 7 days
+
 const refreshToken_Expires = () =>
-  new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  new Date(Date.now() + REFRESH_TOKEN_TTL_MS);
 
 export const userSignUp = async (req, res) => {
   try {
@@ -54,13 +56,13 @@ export const userSignUp = async (req, res) => {
 
     res.cookie("accessToken", accessToken, {
       ...COOKIE_OPTIONS,
-      maxAge: 15 * 60 * 1000,
-    }); // 15 min
+      maxAge: ACCESS_TOKEN_TTL_MS,
+    });
 
     res.cookie("refreshToken", refreshToken, {
       ...COOKIE_OPTIONS,
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    }); // 7 days
+      maxAge: REFRESH_TOKEN_TTL_MS,
+    });
 
     newUser.password = undefined;
 
@@ -99,13 +101,13 @@ export const userLogIn = async (req, res) => {
 
     res.cookie("accessToken", accessToken, {
       ...COOKIE_OPTIONS,
-      maxAge: 15 * 60 * 1000,
-    }); // 15 min
+      maxAge: ACCESS_TOKEN_TTL_MS,
+    });
 
     res.cookie("refreshToken", refreshToken, {
       ...COOKIE_OPTIONS,
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    }); // 7 days
+      maxAge: REFRESH_TOKEN_TTL_MS,
+    });
 
     user.password = undefined;
     user.__v = undefined;
@@ -139,21 +141,26 @@ export const userLogout = async (req, res) => {
 export const userProfile = async (req, res) => {
   try {
     const user = req.user;
-    const userId = req.user._id;
 
-    user.password = undefined;
-    user.__v = undefined;
-    user.tokenValidAfter = undefined;
-
+    // Guard BEFORE dereferencing req.user, otherwise a missing user throws a
+    // TypeError and surfaces as a 500 instead of the intended 404.
     if (!user) {
       return res.status(404).json({ message: "User not found." });
     }
 
+    const userId = user._id;
+
     const sessionDoc = await RefreshToken.findOne({ userId: userId });
     const total_session = sessionDoc ? sessionDoc.token.length : 0;
 
+    // Never leak sensitive fields to the client
+    user.password = undefined;
+    user.__v = undefined;
+    user.tokenValidAfter = undefined;
+
     res.status(200).json({ user: user, total_sessions: total_session });
   } catch (err) {
+    console.error("userProfile error:", err);
     res.status(500).json({ message: "Internal server error" });
   }
 };
@@ -212,12 +219,12 @@ export const refreshAccessToken = async (req, res) => {
 
     res.cookie("accessToken", newAccessToken, {
       ...COOKIE_OPTIONS,
-      maxAge: 15 * 60 * 1000, // 15 min — fix the 1-min bug too
+      maxAge: ACCESS_TOKEN_TTL_MS,
     });
 
     res.cookie("refreshToken", newRefreshToken, {
       ...COOKIE_OPTIONS,
-      maxAge: 7 * 24 * 60 * 60 * 1000,
+      maxAge: REFRESH_TOKEN_TTL_MS,
     });
 
     return res.status(200).json({ message: "Access token refreshed" });

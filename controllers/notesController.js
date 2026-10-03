@@ -93,7 +93,9 @@ export const deleteNotes = async (req, res) => {
     }
     const notes = await Notes.findOneAndDelete({ _id: notesId, userId });
     if (!notes) {
-      return res.status(400).json({ message: "Invalid notesId" });
+      // A well-formed id that matches no note for this user is a 404, not a
+      // malformed-id 400 - keep the two cases distinguishable.
+      return res.status(404).json({ message: "Note not found." });
     }
     await invalidateNotesCache(userId, notesId);
     getIO().to(userId.toString()).emit("note:deleted", notesId);
@@ -163,9 +165,9 @@ export const getUserNotes = async (req, res) => {
     const notes = await Notes.find({ userId: userId }).select(
       "-__v -embedding",
     );
-    if (!notes) {
-      return res.status(404).json({ message: "Notes not found." });
-    }
+
+    // `Notes.find()` always resolves to an array (at worst []), so an empty
+    // list is a valid 200 response with `notes: []` - never a 404.
 
     try {
       await redisClient.setEx(cacheKey, NOTES_LIST_TTL, JSON.stringify(notes));
