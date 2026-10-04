@@ -7,12 +7,13 @@ import {
   getUserNotes,
 } from "../controllers/notesController.js";
 import { userAuth } from "../middelware/authMiddelware.js";
-import { askNotes, aiChats, deleteChat } from "../controllers/askController.js";
+import { askNotes, askNotesStream, aiChats, deleteChat } from "../controllers/askController.js";
 
 const notesRouter = express.Router();
 
 notesRouter.post("/create", userAuth, createNotes);
 notesRouter.post("/ask-ai", userAuth, askNotes);
+notesRouter.post("/ask-ai/stream", userAuth, askNotesStream);
 notesRouter.get("/user", userAuth, getUserNotes);
 notesRouter.get("/get/:notesId", userAuth, getNotesById);
 notesRouter.get("/ai/chats", userAuth, aiChats);
