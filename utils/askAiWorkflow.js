@@ -70,9 +70,7 @@ STRICT RULES:
  */
 export const normalizeChats = (chats) =>
   Array.isArray(chats)
-    ? chats.filter(
-        (chat) => chat && typeof chat === "object" && chat.userQuery,
-      )
+    ? chats.filter((chat) => chat && typeof chat === "object" && chat.userQuery)
     : [];
 
 /**
