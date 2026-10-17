@@ -30,10 +30,29 @@ export const options = {
   vus: 1,
   iterations: 1,
   thresholds: {
-    http_req_duration: ["p(95)<3000"],
-    http_req_failed: ["rate<0.05"],
+    // Only the measured "load" phase is held to the SLO. The cold-start
+    // warm-up in setup() is tagged phase:warmup, so it is excluded here and a
+    // Render spin-up can never make this test fail.
+    "http_req_duration{phase:load}": ["p(95)<3000"],
+    "http_req_failed{phase:load}": ["rate<0.05"],
   },
 };
+
+// WARM-UP PHASE: absorbs the Render cold-start penalty before the measured
+// run. Runs once, before any VU, and is tagged phase:warmup so it does not
+// count towards the thresholds above. Safe to run against a sleeping instance.
+export function setup() {
+  console.log("Warming up the backend...");
+  const res = http.get(`${BASE_URL}/api/health`, {
+    timeout: "60s",
+    tags: { phase: "warmup" },
+  });
+  if (res.status !== 200) {
+    console.warn(
+      `Warm-up returned ${res.status}; backend might still be starting.`,
+    );
+  }
+}
 
 export default function () {
   // NOTE: k6 har VU ke liye apna khud ka cookie jar maintain karta hai
@@ -45,7 +64,7 @@ export default function () {
   // STEP 1: Homepage visit karo
   // ------------------------------------------
   group("1. Homepage", function () {
-    const res = http.get(`${BASE_URL}/`);
+    const res = http.get(`${BASE_URL}/`, { tags: { phase: "load" } });
     check(res, {
       "homepage status is 200": (r) => r.status === 200,
       "homepage loads fast": (r) => r.timings.duration < 3000,
@@ -69,6 +88,7 @@ export default function () {
 
     const params = {
       headers: { "Content-Type": "application/json" },
+      tags: { phase: "load" },
     };
 
     const res = http.post(`${BASE_URL}${AUTH_PREFIX}/login`, payload, params);
@@ -103,7 +123,9 @@ export default function () {
   // STEP 3: Profile fetch karo (cookie auto-attach hogi)
   // ------------------------------------------
   group("3. Get Profile", function () {
-    const res = http.get(`${BASE_URL}${AUTH_PREFIX}/profile`);
+    const res = http.get(`${BASE_URL}${AUTH_PREFIX}/profile`, {
+      tags: { phase: "load" },
+    });
 
     check(res, {
       "profile status is 200": (r) => r.status === 200,
@@ -127,7 +149,9 @@ export default function () {
   let firstNoteId = null;
 
   group("4. Get Notes List", function () {
-    const res = http.get(`${BASE_URL}/api/notes/user`);
+    const res = http.get(`${BASE_URL}/api/notes/user`, {
+      tags: { phase: "load" },
+    });
 
     check(res, {
       "notes list status is 200": (r) => r.status === 200,
@@ -158,7 +182,9 @@ export default function () {
       return;
     }
 
-    const res = http.get(`${BASE_URL}/api/notes/${firstNoteId}`);
+    const res = http.get(`${BASE_URL}/api/notes/get/${firstNoteId}`, {
+      tags: { phase: "load" },
+    });
 
     check(res, {
       "note detail status is 200": (r) => r.status === 200,
@@ -173,6 +199,7 @@ export default function () {
   group("6. Logout", function () {
     const res = http.post(`${BASE_URL}${AUTH_PREFIX}/logout`, null, {
       headers: { "Content-Type": "application/json" },
+      tags: { phase: "load" },
     });
 
     check(res, {

@@ -5,8 +5,14 @@ const isProduction = redisUrl.startsWith("rediss://");
 
 export const redisClient = createClient({
   url: redisUrl,
+  // Never queue commands while the socket is down: a Redis outage would
+  // otherwise stall every cache read until reconnect. With this, cache calls
+  // reject immediately and the controllers fall back to MongoDB, which is the
+  // graceful degradation the app promises.
+  disableOfflineQueue: true,
   socket: {
     tls: isProduction,
+    connectTimeout: 5000,
     keepAlive: 10000, // send TCP keep-alive packets every 10s to prevent idle drop
     reconnectStrategy: (retries) => {
       if (retries > 20) {

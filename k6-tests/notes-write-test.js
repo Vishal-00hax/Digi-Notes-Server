@@ -29,10 +29,13 @@ export const options = {
   },
 };
 
-// WARM-UP PHASE: Absorbs the cold start penalty outside of the main test metrics
+// WARM-UP PHASE: absorbs the cold start penalty outside of the main test metrics
 export function setup() {
   console.log("Waking up the backend server...");
-  const res = http.get(`${BASE_URL}`, { timeout: "60s" });
+  const res = http.get(`${BASE_URL}/api/health`, {
+    timeout: "60s",
+    tags: { phase: "warmup" },
+  });
   if (res.status !== 200) {
     console.warn(
       "Warm-up request did not return 200, backend might still be starting.",

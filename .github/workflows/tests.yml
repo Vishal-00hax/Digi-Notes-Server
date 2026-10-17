@@ -37,18 +37,48 @@ jobs:
       - uses: actions/checkout@v4
 
       # ------------------------------------------
-      # Render free tier app 15 min inactivity ke
-      # baad so jaata hai. Load test se pehle ek
-      # request bhej kar jagao, warna pehla real
-      # request 30-50 sec le sakta hai aur test ka
-      # data skew ho sakta hai.
+      # Render free tier app 15 min inactivity ke baad so jaata hai. Pehle
+      # hum sirf `sleep 40` karte the aur frontend URL ko ping karte the --
+      # usse Render backend kabhi warm hi nahi hota tha, isliye login (pehla
+      # backend call) 30-50 sec cold start khata tha aur p95 threshold fail
+      # ho jaata tha. Ab hum backend ke /api/health/ready endpoint ko tab tak
+      # poll karte hain jab tak wo 200 (DB connected) na de de.
       # ------------------------------------------
-      - name: Wake up Render app (cold start handle)
+      - name: Warm up backend (poll until ready)
+        env:
+          BASE_URL: ${{ secrets.BASE_URL }}
         run: |
-          echo "Waking up the app..."
-          curl -s -o /dev/null -w "%{http_code}" "${{ secrets.BASE_URL }}" || true
-          echo "Waiting for app to fully wake up..."
-          sleep 40
+          set -euo pipefail
+
+          # Same sanitizing as the k6 scripts: strip brackets, quotes,
+          # whitespace and trailing slashes that can sneak into secrets.
+          CLEAN_URL=$(printf '%s' "$BASE_URL" | tr -d '[]"'"'"'<> \t\r\n' | sed 's#/*$##')
+          case "$CLEAN_URL" in
+            http://*|https://*) ;;
+            *) CLEAN_URL="https://${CLEAN_URL}" ;;
+          esac
+
+          ROOT_URL="${CLEAN_URL}/"
+          READY_URL="${CLEAN_URL}/api/health/ready"
+
+          echo "Warming up frontend at ${ROOT_URL} ..."
+          curl -s -o /dev/null --max-time 30 "$ROOT_URL" || true
+
+          echo "Polling ${READY_URL} until the backend is ready..."
+          for attempt in $(seq 1 36); do
+            rm -f /tmp/health.json
+            code=$(curl -s -o /tmp/health.json -w "%{http_code}" --max-time 15 "$READY_URL" || true)
+            body=$(cat /tmp/health.json 2>/dev/null || true)
+            if [ "$code" = "200" ]; then
+              echo "Backend ready after ${attempt} attempt(s): ${body}"
+              exit 0
+            fi
+            echo "Attempt ${attempt}: HTTP ${code:-000} - ${body}"
+            sleep 5
+          done
+
+          echo "Backend did not become ready within the timeout."
+          exit 1
 
       - name: Run k6 - Auth + Read Load Test
         uses: grafana/k6-action@v0.3.1
